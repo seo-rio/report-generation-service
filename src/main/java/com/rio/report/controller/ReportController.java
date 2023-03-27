@@ -1,14 +1,11 @@
 package com.rio.report.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.rio.report.common.ApiResponse;
 import com.rio.report.common.EnumResult;
 import com.rio.report.common.MessageResponse;
 import com.rio.report.common.ResultHeaders;
 import com.rio.report.dto.GenerateReportDto;
-import com.rio.report.dto.NotionResponseDto;
 import com.rio.report.service.ReportService;
-import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

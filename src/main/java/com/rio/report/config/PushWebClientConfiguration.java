@@ -2,7 +2,6 @@ package com.rio.report.config;
 
 import com.rio.report.util.LogUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -22,7 +21,6 @@ public class PushWebClientConfiguration {
             .defaultHeaders(httpHeaders -> {
                 httpHeaders.setContentType(MediaType.valueOf(MediaType.APPLICATION_JSON_VALUE));
                 httpHeaders.set("Notion-Version", "2022-02-22");
-                httpHeaders.set("Authorization", "Bearer secret_WiBwDiXwSWR4Gha1Y18lQ0JjxPNHOslkMtXfClTmAS6");
             })
             .filter(ExchangeFilterFunction.ofRequestProcessor(
                 clientRequest -> {
