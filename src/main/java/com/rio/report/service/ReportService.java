@@ -1,17 +1,6 @@
 package com.rio.report.service;
 
-import com.rio.report.dto.CalloutBlockVo;
-import com.rio.report.dto.ContainsConditionVo;
-import com.rio.report.dto.DateConditionVo;
-import com.rio.report.dto.GenerateReportDto;
-import com.rio.report.dto.IconVo;
-import com.rio.report.dto.ModifyPeriodDto;
-import com.rio.report.dto.NotionResponseDto;
-import com.rio.report.dto.OrConditionVo;
-import com.rio.report.dto.PeopleConditionVo;
-import com.rio.report.dto.RichTextVo;
-import com.rio.report.dto.SearchWorkDto;
-import com.rio.report.dto.TextVo;
+import com.rio.report.dto.*;
 import com.rio.report.dto.block.BlockAnnotationsDto;
 import com.rio.report.dto.block.BlockChildrenDto;
 import com.rio.report.dto.block.BlockPeopleDto;
@@ -24,6 +13,7 @@ import com.rio.report.dto.db.NotionDataDto;
 import com.rio.report.dto.db.NotionDataDto.Request;
 import com.rio.report.dto.db.WorkResultDto;
 import com.rio.report.util.LogUtil;
+
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -33,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,12 +38,12 @@ public class ReportService {
     private final WebClient pushWebClient;
 
     public void generateReport(GenerateReportDto generateReportDto) throws Exception {
-       
+
         NotionResponseDto blockChildren;
         try {
             String retrieveBlockChildUri = "/v1/blocks/" + generateReportDto.getReportPageId() + "/children";
             blockChildren = pushWebClient.get().uri(retrieveBlockChildUri).retrieve().bodyToMono(NotionResponseDto.class).block();
-        }catch (Exception e) {
+        } catch (Exception e) {
             throw new Exception("Page 정보 조회 실패");
         }
 
@@ -68,8 +59,8 @@ public class ReportService {
 
         for (String addr : generateReportDto.getTeamEmailAddr()) {
             for (BlockPeopleDto result : allUsers.getResults()) {
-                if(result.getPerson() != null) {
-                    if(result.getPerson().get("email").equals(addr)) {
+                if (result.getPerson() != null) {
+                    if (result.getPerson().get("email").equals(addr)) {
                         team.add(result.getId());
                     }
                 }
@@ -95,8 +86,8 @@ public class ReportService {
 
         // 1. 기간 설정
         List<String> periodCallOutBlockIds = Objects.requireNonNull(blockChildren).getResults().stream()
-            .filter(bc -> bc.get("type").equals("callout"))
-            .map(f -> f.get("id").toString()).collect(Collectors.toList());
+                .filter(bc -> bc.get("type").equals("callout"))
+                .map(f -> f.get("id").toString()).collect(Collectors.toList());
 
         log.debug(LogUtil.printValue("periodCallOutBlockIds", periodCallOutBlockIds));
 
@@ -121,7 +112,7 @@ public class ReportService {
             IconVo iconVo = new IconVo("emoji", "\uD83D\uDCC5");
             RichTextVo richTextVo = new RichTextVo("text", textVo);
             CalloutBlockVo calloutBlockVo =
-                new CalloutBlockVo(Collections.singletonList(richTextVo), iconVo, "default");
+                    new CalloutBlockVo(Collections.singletonList(richTextVo), iconVo, "default");
 
             ModifyPeriodDto modifyPeriodParam = new ModifyPeriodDto();
             modifyPeriodParam.setCallout(calloutBlockVo);
@@ -130,12 +121,12 @@ public class ReportService {
 
             try {
                 pushWebClient
-                    .patch()
-                    .uri(updatePeriodBlockUri)
-                    .body(Mono.just(modifyPeriodParam), ModifyPeriodDto.class)
-                    .retrieve()
-                    .bodyToMono(Void.class)
-                    .block();
+                        .patch()
+                        .uri(updatePeriodBlockUri)
+                        .body(Mono.just(modifyPeriodParam), ModifyPeriodDto.class)
+                        .retrieve()
+                        .bodyToMono(Void.class)
+                        .block();
             } catch (Exception e) {
                 throw new Exception("보고서 기간 설정 실패");
             }
@@ -143,8 +134,8 @@ public class ReportService {
 
         // 2. 보고서 Table 설정
         List<String> workTableBlockIds = Objects.requireNonNull(blockChildren).getResults().stream()
-            .filter(bc -> bc.get("type").equals("table"))
-            .map(f -> f.get("id").toString()).collect(Collectors.toList());
+                .filter(bc -> bc.get("type").equals("table"))
+                .map(f -> f.get("id").toString()).collect(Collectors.toList());
 
 
         // 2-2. 정보를 조회할 프로젝트 Task DB ID 목록
@@ -159,31 +150,65 @@ public class ReportService {
                 // 2-3. 조회 기간 설정
                 SimpleDateFormat conditionFormat = new SimpleDateFormat("yyyy-MM-dd");
 
-                DateConditionVo before = new DateConditionVo("계획 기간", new HashMap<>() {{
-                    put("on_or_before", conditionFormat.format(reqBeforeCal.getTime()));
-                }});
+                ArrayList<Object> slaveOrEndDateConditionList = new ArrayList<>();
+                ArrayList<Object> slaveOrStartDateConditionList = new ArrayList<>();
 
-                DateConditionVo after = new DateConditionVo("계획 기간", new HashMap<>() {{
-                    put("on_or_after", conditionFormat.format(reqAfterCal.getTime()));
-                }});
-
-                ArrayList<Object> masterAndConditionList = new ArrayList<>();
-
-                // 2-4. 조회할 대상 팀원들을 담당자 조건으로 조회
-                ArrayList<Object> slaveOrConditionList = new ArrayList<>();
-                for (String member : team) {
-                    PeopleConditionVo people = new PeopleConditionVo("담당자", new ContainsConditionVo(member));
-                    slaveOrConditionList.add(people);
+                for (int j = 0; j < 5; j++) {
+                    Calendar cloneReqAfterCal = (Calendar) reqAfterCal.clone();
+                    cloneReqAfterCal.add(Calendar.DATE, j);
+                    DateConditionVo end = new DateConditionVo("종료일", new HashMap<>() {{
+                        put("equals", conditionFormat.format(cloneReqAfterCal.getTime()));
+                    }});
+                    slaveOrEndDateConditionList.add(end);
                 }
 
-                OrConditionVo slaveOrCondition = new OrConditionVo(slaveOrConditionList);
 
-                masterAndConditionList.add(slaveOrCondition);
-                masterAndConditionList.add(before);
-                masterAndConditionList.add(after);
+                for (int j = 0; j < 5; j++) {
+                    Calendar cloneReqAfterCal = (Calendar) reqAfterCal.clone();
+                    cloneReqAfterCal.add(Calendar.DATE, j);
+                    DateConditionVo start = new DateConditionVo("시작일", new HashMap<>() {{
+                        put("equals", conditionFormat.format(cloneReqAfterCal.getTime()));
+                    }});
+                    slaveOrStartDateConditionList.add(start);
+                }
+
+
+//                DateConditionVo afterEndDate = new DateConditionVo("종료일", new HashMap<>() {{
+//                    put("on_or_after", conditionFormat.format(reqAfterCal.getTime()));
+//                }});
+
+
+//                DateConditionVo beforeStartDate = new DateConditionVo("시작일", new HashMap<>() {{
+//                    put("on_or_before", conditionFormat.format(reqBeforeCal.getTime()));
+//                }});
+//
+//                DateConditionVo afterStartDate = new DateConditionVo("시작일", new HashMap<>() {{
+//                    put("on_or_after", conditionFormat.format(reqAfterCal.getTime()));
+//                }});
+
+//                slaveOrEndDateConditionList.add(slaveOrEndDateConditionList);
+//                slaveOrEndDateConditionList.add(slaveOrStartDateConditionList);
+
+                ArrayList<Object> masterOrConditionList = new ArrayList<>();
+
+                // 2-4. 조회할 대상 팀원들을 담당자 조건으로 조회
+//                ArrayList<Object> slaveOrConditionList = new ArrayList<>();
+//                for (String member : team) {
+//                    PeopleConditionVo people = new PeopleConditionVo("담당자", new ContainsConditionVo(member));
+//                    slaveOrConditionList.add(people);
+//                }
+
+
+//                OrConditionVo slaveOrManagerCondition = new OrConditionVo(slaveOrConditionList);
+//                OrConditionVo slaveOrDateCondition = new OrConditionVo(slaveOrEndDateConditionList);
+
+
+                masterOrConditionList.add(new OrConditionVo(slaveOrEndDateConditionList));
+                masterOrConditionList.add(new OrConditionVo(slaveOrStartDateConditionList));
+//                masterAndConditionList.add(after);
 
                 SearchWorkDto searchParam = new SearchWorkDto(new HashMap<>() {{
-                    put("and", masterAndConditionList);
+                    put("or", masterOrConditionList);
                 }});
 
                 log.debug(LogUtil.printValue("searchParam", searchParam));
@@ -193,7 +218,7 @@ public class ReportService {
                 try {
                     String queryDbUri = "/v1/databases/" + projectDBId + "/query";
                     workInfo = pushWebClient.post().uri(queryDbUri).body(Mono.just(searchParam), SearchWorkDto.class).retrieve()
-                        .bodyToMono(NotionDataDto.Response.class).block();
+                            .bodyToMono(NotionDataDto.Response.class).block();
 
                 } catch (Exception e) {
                     throw new Exception("Task 정보 조회 실패");
@@ -234,8 +259,8 @@ public class ReportService {
                         PlanPeriodDto planPeriod = result.getProperties().getPlanPeriod();
                         String start = planPeriod.getDate().getStart() == null ? "" : planPeriod.getDate().getStart();
                         String end =
-                            planPeriod.getDate().getEnd() == null ? planPeriod.getDate().getStart() == null ? "" : planPeriod.getDate().getStart()
-                                : planPeriod.getDate().getEnd();
+                                planPeriod.getDate().getEnd() == null ? planPeriod.getDate().getStart() == null ? "" : planPeriod.getDate().getStart()
+                                        : planPeriod.getDate().getEnd();
 
                         // 3-4. Task 상태 추출
                         String workStatus = result.getProperties().getWorkStatus().getStatus().getName();
@@ -277,7 +302,7 @@ public class ReportService {
                             List<BlockTableCellDto> reqWorStatusCell = new ArrayList<>();
                             BlockTextDto reqWorkStatusText = new BlockTextDto(workStatus, null);
                             BlockAnnotationsDto reqWorkStatusAnnotations = new BlockAnnotationsDto(false, false, false, false, false,
-                                workStatusColor);
+                                    workStatusColor);
                             reqWorStatusCell.add(new BlockTableCellDto("text", reqWorkStatusText, reqWorkStatusAnnotations));
                             reqBlockTableCells.add(reqWorStatusCell);
                         }
@@ -301,12 +326,12 @@ public class ReportService {
                 // 4. 보고서 Table Row Block 추가
                 try {
                     pushWebClient
-                        .patch()
-                        .uri(appendTableBlockUri)
-                        .body(Mono.just(request), NotionDataDto.Request.class)
-                        .retrieve()
-                        .bodyToMono(Void.class)
-                        .block();
+                            .patch()
+                            .uri(appendTableBlockUri)
+                            .body(Mono.just(request), NotionDataDto.Request.class)
+                            .retrieve()
+                            .bodyToMono(Void.class)
+                            .block();
                 } catch (Exception e) {
                     throw new Exception("보고서 정보 등록 실패");
                 }

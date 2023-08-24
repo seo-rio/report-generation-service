@@ -21,6 +21,7 @@ public class PushWebClientConfiguration {
             .defaultHeaders(httpHeaders -> {
                 httpHeaders.setContentType(MediaType.valueOf(MediaType.APPLICATION_JSON_VALUE));
                 httpHeaders.set("Notion-Version", "2022-02-22");
+                httpHeaders.set("Authorization", "Bearer secret_Lop0TIKuzI2Q1AwFCqx5m52pR9WGh0wab2XRT8JKYDl");
             })
             .filter(ExchangeFilterFunction.ofRequestProcessor(
                 clientRequest -> {
